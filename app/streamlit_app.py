@@ -1,12 +1,19 @@
 """Streamlit frontend.
 
-Consumes the FastAPI service when MN_API_URL is set, otherwise builds the
-artifact locally (so the demo works standalone). Renders the gauge, composite
-index, recession probabilities, contributions, drift table, and a memo button.
+Data source priority:
+  1. MN_API_URL set      -> read live from the FastAPI service
+  2. app/snapshot.json   -> read a precomputed snapshot (used for free hosting,
+                            so the page loads instantly with no model build)
+  3. neither             -> build the artifact locally (full standalone demo)
+
+Renders the gauge, composite index, recession probabilities, contributions,
+drift table, and a research memo.
 """
 from __future__ import annotations
 
+import json
 import os
+from pathlib import Path
 
 import pandas as pd
 import plotly.graph_objects as go
@@ -15,17 +22,26 @@ import streamlit as st
 
 st.set_page_config(page_title="Macro Nowcaster", layout="wide")
 API = os.environ.get("MN_API_URL", "").rstrip("/")
+SNAPSHOT = Path(__file__).parent / "snapshot.json"
 
 
 @st.cache_data(ttl=1800, show_spinner=True)
 def load():
+    # 1. live API
     if API:
         s = requests.get(f"{API}/nowcast", timeout=30).json()
         series = requests.get(f"{API}/series", timeout=30).json()
         contrib = requests.get(f"{API}/contributions", timeout=30).json()
         drift = requests.get(f"{API}/drift", timeout=30).json()
-        return s, series, contrib, drift
-    # local fallback
+        return s, series, contrib, drift, None
+
+    # 2. precomputed snapshot (fast path for free hosting)
+    if SNAPSHOT.exists():
+        data = json.loads(SNAPSHOT.read_text())
+        return (data["summary"], data["series"], data["contrib"],
+                data["drift"], data.get("memo"))
+
+    # 3. build locally
     from macro_nowcaster.pipeline import build_artifact
 
     art = build_artifact(persist=False)
@@ -34,16 +50,23 @@ def load():
     series = {
         "dates": [d.strftime("%Y-%m-%d") for d in comp.index],
         "composite": [float(v) for v in comp.values],
-        "nowcast_recprob": [float(v) for v in art.nowcast.prob.reindex(comp.index).values],
-        "lead_recprob": [float(v) for v in art.leading.prob.reindex(comp.index).values],
+        "nowcast_recprob": [None if pd.isna(v) else float(v)
+                            for v in art.nowcast.prob.reindex(comp.index).values],
+        "lead_recprob": [None if pd.isna(v) else float(v)
+                         for v in art.leading.prob.reindex(comp.index).values],
     }
     contrib = {"indicator": list(art.contributions.index),
                "contribution": [float(v) for v in art.contributions.values]}
     drift = art.drift.to_dict(orient="records")
-    return s, series, contrib, drift
+    return s, series, contrib, drift, None
 
 
-s, series, contrib, drift = load()
+def pct(values):
+    """Scale a list to percent, treating missing values as 0 for plotting."""
+    return [(v or 0) * 100 for v in (values or [])]
+
+
+s, series, contrib, drift, snapshot_memo = load()
 dates = pd.to_datetime(series["dates"])
 
 st.title("Macro Nowcasting System")
@@ -73,9 +96,9 @@ fc.update_layout(title="Composite Activity Index", height=300)
 st.plotly_chart(fc, use_container_width=True)
 
 fp = go.Figure()
-fp.add_trace(go.Scatter(x=dates, y=[(v or 0) * 100 for v in (series["nowcast_recprob"] or [])],
+fp.add_trace(go.Scatter(x=dates, y=pct(series["nowcast_recprob"]),
                         name="Nowcast", line=dict(color="#b2182b", width=2)))
-fp.add_trace(go.Scatter(x=dates, y=[(v or 0) * 100 for v in (series["lead_recprob"] or [])],
+fp.add_trace(go.Scatter(x=dates, y=pct(series["lead_recprob"]),
                         name="12m ahead", line=dict(color="#ef8a62", width=2, dash="dot")))
 fp.add_hline(y=50, line_dash="dash", line_color="gray")
 fp.update_layout(title="Recession Probability", yaxis_range=[0, 100], height=320)
@@ -93,7 +116,9 @@ with col_b:
     st.dataframe(pd.DataFrame(drift), use_container_width=True, height=460)
 
 if st.button("Generate research memo"):
-    if API:
+    if snapshot_memo is not None:
+        memo = snapshot_memo
+    elif API:
         memo = requests.post(f"{API}/memo", timeout=60).json()["memo"]
     else:
         from macro_nowcaster.llm.memo_agent import MemoContext, generate_memo
