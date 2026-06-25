@@ -106,7 +106,7 @@ def fit_activity_factor(panel_z: pd.DataFrame, prefer: str = "dfm") -> ActivityF
 
 def contributions(af: ActivityFactor, panel_z: pd.DataFrame) -> pd.Series:
     """Signed contribution of each indicator to the latest activity reading."""
-    latest = panel_z.iloc[-1].fillna(0.0)
+    latest = panel_z.ffill().iloc[-1].fillna(0.0)
     contrib = (latest - af.means.fillna(0.0)) * af.loadings
     denom = contrib.abs().sum()
     return (contrib / denom).sort_values() if denom else contrib.sort_values()
