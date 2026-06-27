@@ -24,6 +24,11 @@ st.set_page_config(page_title="Macro Nowcaster", layout="wide")
 API = os.environ.get("MN_API_URL", "").rstrip("/")
 SNAPSHOT = Path(__file__).parent / "snapshot.json"
 
+# --- author / attribution (edit AUTHOR_LINKEDIN with your real URL) ---
+AUTHOR_LINKEDIN = "https://www.linkedin.com/in/owenfelaris/"
+AUTHOR_GITHUB = "https://github.com/felariop-jpg"
+AUTHOR_REPO = "https://github.com/felariop-jpg/macro-nowcaster"
+
 
 @st.cache_data(ttl=1800, show_spinner=True)
 def load():
@@ -82,6 +87,8 @@ if SNAPSHOT.exists() and not API:
 st.title("Macro Nowcasting System")
 st.caption(f"As of {s['as_of']}  |  factor method: {s['factor_method']}  |  "
            f"variance explained: {s['var_explained']:.0%}")
+st.caption(f"Built by [Owen Felaris]({AUTHOR_LINKEDIN})  ·  finance and "
+           f"entrepreneurship, Miami University  ·  [GitHub]({AUTHOR_REPO})")
 
 st.markdown(
     "Official GDP prints four to eight weeks after a quarter closes. This system reads "
@@ -276,3 +283,17 @@ if st.button("Generate research memo"):
             gdp_nowcast=s["gdp_nowcast"], top_tailwinds=s["top_tailwinds"],
             top_drags=s["top_drags"]))
     st.code(memo)
+
+st.divider()
+st.markdown(
+    f"**Built by Owen Felaris.** Finance and entrepreneurship co-major at Miami "
+    f"University's Farmer School of Business, Class of 2028. I built and validated "
+    f"this system end to end: data sourcing and point-in-time vintage handling, the "
+    f"mixed-frequency dynamic factor model, the out-of-sample backtest, and "
+    f"benchmarking against the Chicago and Atlanta Fed indices. Open to finance and "
+    f"consulting internships."
+)
+st.markdown(
+    f"[LinkedIn]({AUTHOR_LINKEDIN})  ·  [GitHub]({AUTHOR_GITHUB})  ·  "
+    f"[Source code]({AUTHOR_REPO})"
+)
