@@ -5017,7 +5017,7 @@
     "rt_final_corr": 0.88,
     "window": "1995-01-01 to 2026-06-25"
   },
-  "generated_at": "2026-07-18 11:59 UTC",
+  "generated_at": "2026-07-19 12:04 UTC",
   "memo": "MACRO NOWCAST MEMO  |  2026-07-31\n====================================================\nActivity factor: -0.04 sd (Slowdown).\nRecession probability: 3% now, 9% over 12 months.\nGDP nowcast: +2.7% annualized.\n\nTailwinds: High Yield OAS, Core Capex Orders, Baa Credit Spread.\nDrags: Consumer Sentiment, Real Income ex Transfers, Durable Goods Orders.\n\n[Templated memo. Set ANTHROPIC_API_KEY for a written analyst draft.]",
   "memo_used_llm": false
 }
