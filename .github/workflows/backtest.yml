@@ -41,6 +41,7 @@ jobs:
       - name: Replay history and regenerate RESULTS.md
         env:
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          PYTHONPATH: src
         run: |
           python scripts/backtest.py \
             --factor "${{ inputs.factor }}" \
